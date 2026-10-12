@@ -1,4 +1,5 @@
 import badWordsList from './words.json';
+import insultsList from './insults.json';
 import safeStemsList from './safe-stems.json';
 
 // A word is a run of Latin or Arabic letters, diacritics and digits.
@@ -14,6 +15,16 @@ const CONJUNCTIONS = ["", "و", "ف"];
 const PREPOSITIONS = ["", "ب", "ل", "ك"];
 const ARTICLES = ["", "ال"];
 
+export interface IraqiBadWordsFilterOptions {
+  /** Extra words to filter, on top of the built-in list. */
+  customWords?: string[];
+  /**
+   * Also filter milder insults (كلب, حمار, قندرة, …). Off by default because
+   * many of them are everyday words ("عندي كلب", "جلب لي هدية").
+   */
+  includeInsults?: boolean;
+}
+
 export class IraqiBadWordsFilter {
   private words: Set<string>;
 
@@ -22,11 +33,16 @@ export class IraqiBadWordsFilter {
   // forms (وبعيرك). Listed in safe-stems.json.
   private safeStems: string[];
 
-  constructor(customWords: string[] = []) {
-    // Combine the external JSON file list with any custom words passed at runtime
+  constructor(options: string[] | IraqiBadWordsFilterOptions = {}) {
+    // An array is the 1.0 signature: new IraqiBadWordsFilter(customWords)
+    const { customWords = [], includeInsults = false } = Array.isArray(options)
+      ? { customWords: options }
+      : options;
+
+    // Combine the external JSON file lists with any custom words passed at runtime
     this.words = new Set();
     this.safeStems = safeStemsList.map((stem) => this.normalizeArabic(stem));
-    this.addWords([...badWordsList, ...customWords]);
+    this.addWords([...badWordsList, ...(includeInsults ? insultsList : []), ...customWords]);
   }
 
   /**

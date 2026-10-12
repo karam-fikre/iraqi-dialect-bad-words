@@ -57,9 +57,21 @@ export function CommentInput() {
 
 ## API
 
-### `new IraqiBadWordsFilter(customWords?: string[])`
+### `new IraqiBadWordsFilter(options?)`
 
-Creates a filter with the built-in word list plus any extra words you pass.
+Creates a filter with the built-in word list.
+
+```ts
+new IraqiBadWordsFilter();                               // profanity only
+new IraqiBadWordsFilter({ includeInsults: true });       // also milder insults
+new IraqiBadWordsFilter({ customWords: ['word1', 'word2'] });
+new IraqiBadWordsFilter(['word1', 'word2']);             // same as customWords
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `customWords` | `[]` | Extra words to filter. |
+| `includeInsults` | `false` | Also filter milder insults like كلب, حمار, قندرة, نعال. Off by default because many of them are everyday words, so turning it on flags sentences like `عندي كلب` ("I have a dog"). |
 
 ### `isProfane(text: string): boolean`
 
@@ -107,7 +119,7 @@ The word list is the heart of this package, and native speakers are the best jud
 - **A clean word is flagged:** open a [“Clean word flagged” issue](https://github.com/karam-fikre/iraqi-dialect-bad-words/issues/new?template=false-positive.yml).
   If it's flagged only because of a prefix (e.g. `بعير` "camel" = `ب` + a bad word), the fix is adding it to [`src/safe-stems.json`](src/safe-stems.json).
 
-Please avoid adding words that have a common, normal meaning; they cause false positives for everyone.
+Words that also have a common, normal meaning (like كلب "dog") belong in [`src/insults.json`](src/insults.json), which is opt-in, not in `words.json`.
 
 ### Development
 

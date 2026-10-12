@@ -61,6 +61,23 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     assert.strictEqual(filter.isProfane('وبعيرك'), false);
   });
 
+  it('should not filter insults by default', () => {
+    assert.strictEqual(filter.isProfane('عندي كلب بالبيت'), false);
+    assert.strictEqual(filter.isProfane('جلب لي هدية'), false);
+  });
+
+  it('should filter insults when includeInsults is on', () => {
+    const strict = new IraqiBadWordsFilter({ includeInsults: true });
+    assert.strictEqual(strict.isProfane('انت حمار'), true);
+    assert.strictEqual(strict.clean('ابن الكلب'), 'ابن *****');
+    assert.strictEqual(strict.isProfane('هذا كلام عارة'), true);
+  });
+
+  it('should accept custom words as an array or in options', () => {
+    assert.strictEqual(new IraqiBadWordsFilter(['زفت']).isProfane('زفت'), true);
+    assert.strictEqual(new IraqiBadWordsFilter({ customWords: ['زفت'] }).isProfane('زفت'), true);
+  });
+
   it('should add and remove words regardless of diacritics', () => {
     const custom = new IraqiBadWordsFilter();
     custom.addWords(['زَفت']);
