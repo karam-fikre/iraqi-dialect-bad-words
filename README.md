@@ -64,6 +64,7 @@ Creates a filter with the built-in word list.
 ```ts
 new IraqiBadWordsFilter();                               // profanity only
 new IraqiBadWordsFilter({ includeInsults: true });       // also milder insults
+new IraqiBadWordsFilter({ stripSuffixes: true });        // also unlisted suffix forms
 new IraqiBadWordsFilter({ customWords: ['word1', 'word2'] });
 new IraqiBadWordsFilter(['word1', 'word2']);             // same as customWords
 ```
@@ -72,6 +73,7 @@ new IraqiBadWordsFilter(['word1', 'word2']);             // same as customWords
 |---|---|---|
 | `customWords` | `[]` | Extra words to filter. |
 | `includeInsults` | `false` | Also filter milder insults like كلب, حمار, قندرة, نعال. Off by default because many of them are everyday words, so turning it on flags sentences like `عندي كلب` ("I have a dog"). |
+| `stripSuffixes` | `false` | Also match words with a pronoun suffix (ي ك ج ه ها نا كم هم) that the list doesn't spell out, e.g. `طيزهم` → `طيز`. Off by default because it widens matching: a clean word that ends like a bad word plus a suffix gets flagged too. |
 
 ### `isProfane(text: string): boolean`
 
@@ -80,6 +82,36 @@ Returns `true` if any word in the text is on the list.
 ### `clean(text: string, placeholder = '*'): string`
 
 Replaces each bad word with the placeholder, repeated to the word's length. Spaces and punctuation are kept.
+
+### `inspect(text: string, options?): ProfanityMatch[]`
+
+Lists each bad word in the text and explains why it matched. Use it to highlight words, to treat lists differently (e.g. block `words` but only warn on `insults`), or to let someone review a match before your app blocks it.
+
+```ts
+filter.inspect('روح للكواد!');
+// [{ token: 'للكواد', start: 4, end: 10, normalized: 'لكواد',
+//    entry: 'كواد', source: 'words', prefix: 'ل' }]
+```
+
+| Field | Description |
+|---|---|
+| `token` | The word exactly as written. |
+| `start`, `end` | Offsets in the **original** text, so `text.slice(start, end) === token`. Counted in JavaScript string units (UTF-16); convert them if another platform counts characters differently. |
+| `normalized` | The word after normalization (Arabizi is folded too, so `Qa7ba` shows as `gahba`). |
+| `entry` | The list entry it matched, spelled as in the list. |
+| `source` | `'words'`, `'insults'` or `'custom'`. A word on more than one list keeps the first: built-in, then insults, then custom. |
+| `prefix` | The attached prefix stripped before matching (after normalization, so `لل` shows as `ل`), or `''` for a direct match. |
+| `suffix` | The suffix stripped before matching (only with `stripSuffixes`), or `''`. |
+| `suppressedBy` | Only with `includeSuppressed`: the safe stem that cleared this match. |
+
+Pass `{ includeSuppressed: true }` to also see words that matched but were cleared by a safe stem. They are not profane (`isProfane` and `clean` ignore them), but they show why a word *wasn't* flagged:
+
+```ts
+filter.inspect('وبعيرك', { includeSuppressed: true });
+// [{ token: 'وبعيرك', …, entry: 'عيرك', prefix: 'وب', suppressedBy: 'بعير' }]
+```
+
+Including the output of `inspect` in a [“Clean word flagged” issue](https://github.com/karam-fikre/iraqi-dialect-bad-words/issues/new?template=false-positive.yml) shows exactly which entry and prefix rule fired.
 
 ### `addWords(words: string[]): void`
 
@@ -100,8 +132,9 @@ Matching is done per whole word, after normalizing both the text and the word li
 | Tatweel | `عـــارة` |
 | ة / ه, ى / ي, أ / إ / آ / ا | `عاره` |
 | Attached prefixes و ف ب ل ك ال | `والعارة`, `للعارة` |
+| Pronoun suffixes (with `stripSuffixes`) | `طيزهم`, `وطيزكم` |
 | Punctuation next to the word | `عارة!` `عارة،` |
-| Arabizi (Latin letters and numbers) | `ga7ba`, `3ayri` |
+| Arabizi (Latin letters and numbers), including spelling variants | `ga7ba` = `qahba` = `gahba`, `kosomak` = `kusumak`, `3ayri` = `ayri` |
 
 Because matching is whole-word, a clean word that merely contains a bad word is not flagged.
 
@@ -118,6 +151,8 @@ The word list is the heart of this package, and native speakers are the best jud
 - **A word is missing:** open a [“Suggest a word” issue](https://github.com/karam-fikre/iraqi-dialect-bad-words/issues/new?template=add-word.yml), or add it to [`src/words.json`](src/words.json) in a pull request.
 - **A clean word is flagged:** open a [“Clean word flagged” issue](https://github.com/karam-fikre/iraqi-dialect-bad-words/issues/new?template=false-positive.yml).
   If it's flagged only because of a prefix (e.g. `بعير` "camel" = `ب` + a bad word), the fix is adding it to [`src/safe-stems.json`](src/safe-stems.json).
+
+- **A sentence is judged wrong:** add it to [`test/fixtures/sentences.json`](test/fixtures/sentences.json) with the verdict a native speaker expects (`"profane": true` or `false`, plus `"options"` if it needs `includeInsults` or `stripSuffixes`). Every sentence there runs as a test, so later word-list changes can't silently flip it.
 
 Words that also have a common, normal meaning (like كلب "dog") belong in [`src/insults.json`](src/insults.json), which is opt-in, not in `words.json`.
 
