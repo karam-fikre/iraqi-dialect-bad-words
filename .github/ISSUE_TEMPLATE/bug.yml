@@ -1,0 +1,20 @@
+name: Bug report
+description: Something else isn't working
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include a short code example, what you expected, and what you got.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: e.g. Expo SDK 54, React 19 + Vite, Node 22
+  - type: input
+    id: version
+    attributes:
+      label: Package version

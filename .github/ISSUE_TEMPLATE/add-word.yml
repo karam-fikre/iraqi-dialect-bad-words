@@ -1,0 +1,18 @@
+name: Suggest a word
+description: A bad word or insult the filter misses
+labels: [word-list]
+body:
+  - type: input
+    id: word
+    attributes:
+      label: Word
+      description: Write it in Arabic script (and in Latin letters if people also type it that way).
+    validations:
+      required: true
+  - type: textarea
+    id: meaning
+    attributes:
+      label: Meaning and usage
+      description: What it means and how it's used in Iraqi dialect. Does it have any normal, non-offensive meaning?
+    validations:
+      required: true

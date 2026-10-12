@@ -1,0 +1,20 @@
+name: Clean word flagged
+description: A normal word or sentence that the filter marks as profane
+labels: [false-positive]
+body:
+  - type: input
+    id: text
+    attributes:
+      label: Text that was flagged
+    validations:
+      required: true
+  - type: textarea
+    id: meaning
+    attributes:
+      label: What it actually means
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version

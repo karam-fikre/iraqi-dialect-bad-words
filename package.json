@@ -1,0 +1,67 @@
+{
+  "name": "iraqi-dialect-bad-words",
+  "version": "1.0.0",
+  "description": "An Iraqi dialect profanity filter for React, React Native Expo, and Node.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "tsx ./node_modules/mocha/bin/mocha \"./test/**/*.test.ts\"",
+    "prepublishOnly": "npm run build && npm test",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "iraqi",
+    "dialect",
+    "profanity",
+    "filter",
+    "bad-words",
+    "react-native",
+    "expo",
+    "arabic",
+    "iraq",
+    "swear-words",
+    "moderation",
+    "censor",
+    "react",
+    "nodejs",
+    "typescript"
+  ],
+  "author": "Karam Al-Dulaimi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karam-fikre/iraqi-dialect-bad-words.git"
+  },
+  "bugs": {
+    "url": "https://github.com/karam-fikre/iraqi-dialect-bad-words/issues"
+  },
+  "homepage": "https://github.com/karam-fikre/iraqi-dialect-bad-words#readme",
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "mocha": "^12.0.3",
+    "tsup": "^8.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.0.0"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=14"
+  }
+}
