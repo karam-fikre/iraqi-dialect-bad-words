@@ -14,6 +14,28 @@ body:
       label: What it actually means
     validations:
       required: true
+  - type: textarea
+    id: inspect
+    attributes:
+      label: Output of inspect()
+      description: |
+        Run `filter.inspect(text)` on the flagged text and paste the result. It shows the
+        list entry that matched and the rules it needed (prefix, arabizi, gaf-as-kaf, …),
+        which usually points straight at the fix.
+      placeholder: |
+        [{ "token": "…", "entry": "…", "source": "words", "prefix": "…", "rules": ["prefix"] }]
+      render: json
+  - type: input
+    id: options
+    attributes:
+      label: Filter options
+      description: The options you create the filter with, if any.
+      placeholder: "{ includeInsults: true, stripSuffixes: true, dialects: ['mosul'] }"
+  - type: input
+    id: dialect
+    attributes:
+      label: Your dialect or region (optional)
+      description: e.g. Baghdad, Mosul, Basra, Kurdish speaker typing Arabic
   - type: input
     id: version
     attributes:

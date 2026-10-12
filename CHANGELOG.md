@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.0
+
+### Added
+
+- `dialects: ['mosul']` option: every entry and safe stem with ر also matches its غ form (شرموطة → شغموطة). The ر forms keep matching.
+- A word with گ is matched both as ق (Iraqi Arabic) and as ك (as Kurdish typists use it): `گحبة` = `قحبة`, `گس` = `كس`. A گ in a list entry means ق.
+- `inspect()` matches have a `rules` field naming each rule the word needed to match (`prefix`, `arabizi`, `gaf-as-kaf`, `mosul`, …), so reports show why something matched.
+- A safe stem written with گ protects only words spelled with گ. Added گلب (Iraqi spelling of قلب, "heart"), گلاب and طگعة as safe stems.
+- بثور ("pimples") is a safe stem, so `includeInsults` no longer flags it as ب + ثور.
+- ثورة ("revolution") and ثوري ("revolutionary") are safe stems, so `includeInsults` with `stripSuffixes` no longer flags them as ثور + ة/ي.
+- بالعجل ("quickly") is a safe stem, so it isn't flagged as ب + ال + عجل when عجل ("calf") is a custom word.
+- `safeWords` option and `addSafeWords()`: your own safe stems, on top of the built-in `safe-stems.json`, for clean words your app sees flagged.
+- README: how to keep your own words and safe words in JSON files and use them alongside the built-in lists (`customWords: myWords, safeWords: mySafeWords`).
+
+### Fixed
+
+- A blank entry in `customWords` or `addWords()` (e.g. a stray `""` in a word file) made a lone tatweel or diacritic count as profane. Blank entries are now skipped, and whitespace around entries is trimmed. The same goes for `safeWords`, where a blank entry would have cleared every match.
+
 ## 1.2.1
 
 ### Fixed

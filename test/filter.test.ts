@@ -78,6 +78,46 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     assert.strictEqual(new IraqiBadWordsFilter({ customWords: ['زفت'] }).isProfane('زفت'), true);
   });
 
+  it('should use a word file alongside the built-in list', () => {
+    // As loaded from a hand-edited my-words.json
+    const myWords: string[] = JSON.parse('["زفت", " نذل ", "", "   ", "ـــ"]');
+    const custom = new IraqiBadWordsFilter({ customWords: myWords });
+
+    assert.strictEqual(custom.isProfane('هذا كلام عارة'), true);
+    assert.strictEqual(custom.isProfane('انت زفت'), true);
+    assert.strictEqual(custom.isProfane('انت نذل'), true);
+    assert.strictEqual(custom.inspect('انت نذل')[0].entry, 'نذل');
+    // Blank entries must not turn a lone tatweel into a match
+    assert.strictEqual(custom.isProfane('مرحبا ـــ'), false);
+    custom.addWords(['']);
+    assert.strictEqual(custom.isProfane('ـ'), false);
+  });
+
+  it('should use safe words alongside the built-in safe stems', () => {
+    // A made-up pair: بزفت = ب + the custom word زفت
+    assert.strictEqual(new IraqiBadWordsFilter({ customWords: ['زفت'] }).isProfane('هذا بزفت'), true);
+
+    const mySafeWords: string[] = JSON.parse('[" بزفت ", "", "   "]');
+    const custom = new IraqiBadWordsFilter({ customWords: ['زفت'], safeWords: mySafeWords });
+    assert.strictEqual(custom.isProfane('هذا بزفت'), false);
+    assert.strictEqual(custom.isProfane('وبزفتك'), false);
+    assert.strictEqual(custom.inspect('بزفت', { includeSuppressed: true })[0].suppressedBy, 'بزفت');
+    // Built-in safe stems still apply, and blank entries don't clear every match
+    assert.strictEqual(custom.isProfane('شفت بعير'), false);
+    assert.strictEqual(custom.isProfane('انت زفت'), true);
+    assert.strictEqual(custom.isProfane('هذا كلام عارة'), true);
+  });
+
+  it('should add safe words later and give them Mosul forms', () => {
+    const custom = new IraqiBadWordsFilter({ customWords: ['زرق'], dialects: ['mosul'] });
+    assert.strictEqual(custom.isProfane('بزغق'), true);
+    custom.addSafeWords(['بزرق']);
+    assert.strictEqual(custom.isProfane('بزرق'), false);
+    assert.strictEqual(custom.isProfane('بزغق'), false);
+    custom.addSafeWords(['']);
+    assert.strictEqual(custom.isProfane('زرق'), true);
+  });
+
   it('should add and remove words regardless of diacritics', () => {
     const custom = new IraqiBadWordsFilter();
     custom.addWords(['زَفت']);
@@ -93,6 +133,7 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
 
     assert.deepStrictEqual(matches[0], {
       token: 'عَارَة', start: 4, end: 10, normalized: 'عاره', entry: 'عارة', source: 'words', prefix: '', suffix: '',
+      rules: ['diacritics'],
     });
     assert.strictEqual(matches[1].token, 'للكواد');
     assert.strictEqual(matches[1].normalized, 'لكواد');
@@ -251,5 +292,102 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     assert.strictEqual(filter.clean('انت عارة٣٣'), 'انت ******');
     assert.strictEqual(filter.isProfane('مرحبا2024'), false);
     assert.strictEqual(filter.isProfane('ga7ba'), true);
+  });
+
+  it('should read گ as ق', () => {
+    assert.strictEqual(filter.isProfane('گحبة'), true);
+    assert.strictEqual(filter.isProfane('والگواد'), true);
+    assert.strictEqual(filter.inspect('گحبة')[0].normalized, 'قحبه');
+  });
+
+  it('should also read گ as ك, as Kurdish typists use it', () => {
+    const [match] = filter.inspect('گسك');
+    assert.strictEqual(match.normalized, 'كسك');
+    assert.strictEqual(match.entry, 'كسك');
+    assert.strictEqual(filter.isProfane('گسها'), true);
+  });
+
+  it('should treat گ in a list entry as ق', () => {
+    const custom = new IraqiBadWordsFilter(['گفت']);
+    assert.strictEqual(custom.isProfane('قفت'), true);
+    assert.strictEqual(custom.isProfane('گفت'), true);
+  });
+
+  it('should not add Mosul forms by default', () => {
+    assert.strictEqual(filter.isProfane('شغموطة'), false);
+  });
+
+  it('should match Mosul ر → غ forms with dialects: ["mosul"]', () => {
+    const mosul = new IraqiBadWordsFilter({ dialects: ['mosul'] });
+    assert.strictEqual(mosul.isProfane('شغموطة'), true);
+    assert.strictEqual(mosul.isProfane('شرموطة'), true);   // ر forms still match
+    assert.strictEqual(mosul.isProfane('سغسغي'), true);    // every ر in the word
+    const [match] = mosul.inspect('الشغموطة');
+    assert.strictEqual(match.entry, 'الشرموطة');
+    assert.strictEqual(match.source, 'words');
+    assert.deepStrictEqual(match.rules, ['mosul']);
+    assert.deepStrictEqual(mosul.inspect('عيغ')[0].rules, []);  // listed in its own right
+  });
+
+  it('should apply Mosul forms to custom words and safe stems', () => {
+    const mosul = new IraqiBadWordsFilter({ dialects: ['mosul'], customWords: ['زرق'] });
+    assert.strictEqual(mosul.isProfane('زغق'), true);
+    mosul.addWords(['برك']);
+    assert.strictEqual(mosul.isProfane('بغك'), true);
+    assert.strictEqual(mosul.isProfane('شفت بعيغ'), false);
+  });
+
+  it('should remove the Mosul form along with the word', () => {
+    const mosul = new IraqiBadWordsFilter({ dialects: ['mosul'] });
+    mosul.removeWords(['شرموطة']);
+    assert.strictEqual(mosul.isProfane('شرموطة'), false);
+    assert.strictEqual(mosul.isProfane('شغموطة'), false);
+  });
+
+  it('should keep گلب (Iraqi spelling of قلب "heart") clean', () => {
+    const strict = new IraqiBadWordsFilter({ includeInsults: true, stripSuffixes: true });
+    for (const word of ['گلب', 'گلبي', 'بگلبي', 'والگلب']) {
+      assert.strictEqual(strict.isProfane(word), false, word);
+    }
+    assert.strictEqual(strict.isProfane('كلب'), true);
+    assert.strictEqual(strict.isProfane('ابن الكلب'), true);
+
+    const [match] = strict.inspect('گلب', { includeSuppressed: true });
+    assert.strictEqual(match.entry, 'كلب');
+    assert.strictEqual(match.suppressedBy, 'گلب');
+  });
+
+  it('should flag گس, as Kurdish typists write كس', () => {
+    for (const word of ['گس', 'الگس', 'والگس', 'گسها', 'گسگ']) {
+      assert.strictEqual(filter.isProfane(word), true, word);
+    }
+    assert.strictEqual(filter.isProfane('قس'), false);   // priest, written with ق
+    assert.strictEqual(filter.isProfane('القس'), false);
+  });
+
+  it('should keep گلاب and طگعة clean', () => {
+    const strict = new IraqiBadWordsFilter({ includeInsults: true, stripSuffixes: true });
+    assert.strictEqual(strict.isProfane('گلاب'), false);
+    assert.strictEqual(strict.isProfane('طگعة'), false);
+    assert.strictEqual(strict.isProfane('كلاب'), true);
+  });
+
+  it('should report which rules a match needed', () => {
+    const rules = (text: string, f = filter) => f.inspect(text, { includeSuppressed: true })[0].rules;
+    assert.deepStrictEqual(rules('عارة'), []);
+    assert.deepStrictEqual(rules('عاره'), ['spelling']);
+    assert.deepStrictEqual(rules('عاااارة'), ['stretched']);
+    assert.deepStrictEqual(rules('عا\u200cرة'), ['invisible']);
+    assert.deepStrictEqual(rules('کس'), ['keyboard']);
+    assert.deepStrictEqual(rules('ga٧ba'), ['arabic-digits', 'arabizi']);
+    assert.deepStrictEqual(rules('kosomak'), []);
+    assert.deepStrictEqual(rules('kusumak'), ['arabizi']);
+    assert.deepStrictEqual(rules('عارة3'), ['glued-digits']);
+    assert.deepStrictEqual(rules('بطيزك'), ['prefix']);
+    assert.deepStrictEqual(rules('گحبة'), ['gaf-as-qaf']);
+    assert.deepStrictEqual(rules('گسها'), ['gaf-as-kaf']);
+    assert.deepStrictEqual(rules('طيزهم', new IraqiBadWordsFilter({ stripSuffixes: true })), ['suffix']);
+    assert.deepStrictEqual(rules('سغسغي', new IraqiBadWordsFilter({ dialects: ['mosul'] })), ['mosul']);
+    assert.deepStrictEqual(rules('وبعيرك'), ['prefix']);  // suppressed matches carry rules too
   });
 });
