@@ -1,6 +1,6 @@
 {
   "name": "iraqi-dialect-bad-words",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "An Iraqi dialect profanity filter for React, React Native Expo, and Node.js",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
