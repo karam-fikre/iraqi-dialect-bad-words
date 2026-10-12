@@ -200,4 +200,56 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     assert.strictEqual(filter.clean('عارة و عارة.', '#'), '#### و ####.');
     assert.strictEqual(filter.clean('مرحبا', '#'), 'مرحبا');
   });
+
+  it('should match words with invisible characters hidden inside', () => {
+    for (const char of ['\u200c', '\u200d', '\u200b', '\u200f', '\u061c', '\u00ad', '\ufeff', '\u2066']) {
+      const text = `انت عا${char}رة`;
+      assert.strictEqual(filter.isProfane(text), true, JSON.stringify(char));
+      assert.strictEqual(filter.clean(text), 'انت *****');
+    }
+  });
+
+  it('should still match a bad word next to an invisible character', () => {
+    const text = 'عارة\u200bمرحبا';
+    const [match] = filter.inspect(text);
+    assert.strictEqual(match.token, 'عارة');
+    assert.strictEqual(text.slice(match.start, match.end), 'عارة');
+    assert.strictEqual(filter.clean(text), '****\u200bمرحبا');
+  });
+
+  it('should keep spans exact around invisible characters', () => {
+    const text = 'هلا، بطي\u200cزك!';
+    const [match] = filter.inspect(text);
+    assert.strictEqual(text.slice(match.start, match.end), match.token);
+    assert.strictEqual(match.token, 'بطي\u200cزك');
+    assert.strictEqual(match.entry, 'طيزك');
+  });
+
+  it('should not flag clean text with invisible characters', () => {
+    assert.strictEqual(filter.isProfane('مر\u200cحبا بك'), false);
+    assert.strictEqual(filter.isProfane('\u200b\u200c'), false);
+  });
+
+  it('should match Persian and Kurdish keyboard letters', () => {
+    assert.strictEqual(filter.isProfane('عیر'), true);   // Persian ی
+    assert.strictEqual(filter.isProfane('کس'), true);    // Persian ک
+    assert.strictEqual(filter.isProfane('عارە'), true);  // Kurdish ە
+    assert.strictEqual(filter.inspect('بعیر').length, 0); // safe stem still applies
+  });
+
+  it('should match Arabizi written with Arabic-Indic digits', () => {
+    assert.strictEqual(filter.isProfane('ga٧ba'), true);
+    assert.strictEqual(filter.isProfane('٣ayri'), true);
+    assert.strictEqual(filter.isProfane('ga۷ba'), true);  // Persian digit
+    assert.strictEqual(filter.isProfane('٧٣'), false);
+  });
+
+  it('should match Arabic words with digits glued on or inside', () => {
+    for (const word of ['عارة3', 'عارة٣', '3عارة', 'عا٣رة', 'عا33ارة']) {
+      assert.strictEqual(filter.isProfane(word), true, word);
+    }
+    assert.strictEqual(filter.clean('انت عارة٣٣'), 'انت ******');
+    assert.strictEqual(filter.isProfane('مرحبا2024'), false);
+    assert.strictEqual(filter.isProfane('ga7ba'), true);
+  });
 });

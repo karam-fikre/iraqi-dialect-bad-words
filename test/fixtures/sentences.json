@@ -36,5 +36,9 @@
   { "text": "زبج", "profane": true, "options": { "stripSuffixes": true }, "note": "suffix form" },
   { "text": "زبنا", "profane": true, "options": { "stripSuffixes": true }, "note": "suffix form" },
   { "text": "زبكم", "profane": true, "options": { "stripSuffixes": true }, "note": "suffix form" },
-  { "text": "زبهم", "profane": true, "options": { "stripSuffixes": true }, "note": "suffix form" }
+  { "text": "زبهم", "profane": true, "options": { "stripSuffixes": true }, "note": "suffix form" },
+  { "text": "انت عا\u200cرة", "profane": true, "note": "zero-width non-joiner inside the word" },
+  { "text": "عیر", "profane": true, "note": "Persian/Kurdish keyboard ی" },
+  { "text": "ga٧ba", "profane": true, "note": "Arabizi with Arabic-Indic digit" },
+  { "text": "انت عارة3", "profane": true, "note": "digit glued to the word" }
 ]

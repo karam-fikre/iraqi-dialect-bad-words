@@ -131,10 +131,13 @@ Matching is done per whole word, after normalizing both the text and the word li
 | Stretched letters | `عاااارة` |
 | Tatweel | `عـــارة` |
 | ة / ه, ى / ي, أ / إ / آ / ا | `عاره` |
+| Persian/Kurdish keyboard letters ی ک ە | `عیر`, `کس` |
+| Invisible characters hidden inside a word (zero-width, direction marks, soft hyphen) | `عا‌رة` |
 | Attached prefixes و ف ب ل ك ال | `والعارة`, `للعارة` |
 | Pronoun suffixes (with `stripSuffixes`) | `طيزهم`, `وطيزكم` |
 | Punctuation next to the word | `عارة!` `عارة،` |
-| Arabizi (Latin letters and numbers), including spelling variants | `ga7ba` = `qahba` = `gahba`, `kosomak` = `kusumak`, `3ayri` = `ayri` |
+| Digits glued to or inside an Arabic word | `عارة3`, `عا٣رة` |
+| Arabizi (Latin letters and numbers, Western or Arabic-Indic), including spelling variants | `ga7ba` = `ga٧ba` = `qahba` = `gahba`, `kosomak` = `kusumak`, `3ayri` = `ayri` |
 
 Because matching is whole-word, a clean word that merely contains a bad word is not flagged.
 

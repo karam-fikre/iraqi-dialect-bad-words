@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1
+
+### Fixed
+
+- Invisible characters (zero-width space/joiners, direction marks, soft hyphen, …) hidden inside a word no longer let it through: `عا‌رة` is caught. A bad word next to one is still caught too.
+- Letters typed on Persian/Kurdish keyboards now match: ی → ي, ک → ك, ە → ه.
+- Arabizi written with Arabic-Indic digits now matches: `ga٧ba` = `ga7ba`.
+- Digits glued to or inside an Arabic word no longer hide it: `عارة3`, `عارة٣`, `عا٣رة`. Digits in pure Arabizi words still count as letters (`ga7ba`).
+- Arabic-Indic digits and the letters ٮ ٯ were being stripped as if they were diacritics.
+
 ## 1.2.0
 
 ### Added
