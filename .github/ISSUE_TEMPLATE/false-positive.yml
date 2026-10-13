@@ -30,7 +30,7 @@ body:
     attributes:
       label: Filter options
       description: The options you create the filter with, if any.
-      placeholder: "{ includeInsults: true, stripSuffixes: true, dialects: ['mosul'] }"
+      placeholder: "{ includeInsults: true, includePhrases: true, stripSuffixes: true, dialects: ['mosul'] }"
   - type: input
     id: dialect
     attributes:

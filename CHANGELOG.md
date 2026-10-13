@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.4.0
+
+### Added
+
+- Words split into pieces by symbols or spaces are caught: `ع*ي*ر`, `ع.ي.ر`, `ع-ي-ر`, `ع ي ر`, `عي * ر`, `شرم.وطة`, `g-a-h-b-a`. The whole split word, separators included, is reported and masked. Normal sentences (`انا و انت`, `د. علي`) aren't joined. `inspect()` reports the rule `split`.
+- Arabic presentation forms and full-width letters are read as plain letters: `ﻋﻴﺮ` = `عير`, `ｇａｈｂａ` = `gahba` (rule `unicode-forms`).
+- `@` and `$` standing in for a and s in Arabizi words are read as letters: `g@hba`, `$harmoota` (rule `symbols`).
+- The vocative يا glued to a word is stripped like other prefixes: `ياعارة`, `يالعارة`, and with و, also Iraqi ويا ("with"): `وياعارة`.
+- Arabizi `6` is read as ط (t) and `8`, `9` as ق (g): `6eezak` = `teezak`, `9awad` = `gawad`.
+- Greek and Cyrillic letters that look like Latin ones are read as Latin in a word that also has Latin letters: `gаhba` with a Cyrillic `а` (rule `lookalike`). Words written only in Greek or Cyrillic are left alone.
+- Mathematical letters (`𝐠𝐚𝐡𝐛𝐚`, `𝒈𝒂𝒉𝒃𝒂`) are read as plain letters (rule `unicode-forms`).
+- New words: `teez` (Arabizi طيز, so `tiz` and `6eez` match too), لقلقو, خصوة (also خصوه), خصاوي.
+- Phrases: `src/phrases.json` lists phrases of clean words that are vulgar together (`تعال العب بيه`, `تعال العب بينو`), filtered only with `includePhrases: true`, since the words can be meant literally. Your own phrases go in `customPhrases` or `addPhrases()`, and `removePhrases()` drops any. A phrase is matched word by word after normalization, punctuation between words is ignored, and the first word can carry a prefix (`وتعال، العب بيه`). The whole phrase is one match with `source: 'phrases'` and the rule `phrase`.
+- A phrase word can list alternatives separated by `|`: `قوم|كوم بيه|بينو` matches all four combinations. `phrases.json` uses this, so it no longer lists every combination (or گ spellings, which match the ق alternative anyway).
+- The first word of a phrase can carry the Iraqi progressive `د`: `دقوم بيه`.
+
+- `npm run check -- file.txt` (development only, not published) lists every match in a text file with its position, entry, rules and context, to test the filter on real articles.
+
+### Changed
+
+- `MatchRule` has new members (`unicode-forms`, `lookalike`, `split`, `symbols`, `phrase`) and `WordSource` has `'phrases'`. TypeScript code with an exhaustive `switch` over either needs the new cases.
+- `_` now separates words like other symbols, so `ع_ي_ر` is caught as a split word.
+- `clean()` puts one placeholder per character, so an emoji or a mathematical letter inside a masked word gets one `*`, not two.
+- Normalized words are cached per filter, so checking text is faster than before, even with the new passes.
+
 ## 1.3.0
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "name": "iraqi-dialect-bad-words",
   "version": "1.3.0",
-  "description": "An Iraqi dialect profanity filter for React, React Native Expo, and Node.js",
+  "description": "An Iraqi dialect profanity filter for React, React Native Expo, Vue, and Node.js",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -25,7 +25,8 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "test": "tsx ./node_modules/mocha/bin/mocha \"./test/**/*.test.ts\"",
     "prepublishOnly": "npm run build && npm test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check": "tsx scripts/check-file.ts"
   },
   "keywords": [
     "iraqi",
@@ -41,6 +42,8 @@
     "moderation",
     "censor",
     "react",
+    "vue",
+    "nuxt",
     "nodejs",
     "typescript"
   ],

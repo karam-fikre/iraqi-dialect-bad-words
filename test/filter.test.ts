@@ -389,5 +389,177 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     assert.deepStrictEqual(rules('طيزهم', new IraqiBadWordsFilter({ stripSuffixes: true })), ['suffix']);
     assert.deepStrictEqual(rules('سغسغي', new IraqiBadWordsFilter({ dialects: ['mosul'] })), ['mosul']);
     assert.deepStrictEqual(rules('وبعيرك'), ['prefix']);  // suppressed matches carry rules too
+    assert.deepStrictEqual(rules('ﻋﻴﺮ'), ['unicode-forms']);
+    assert.deepStrictEqual(rules('ع*ي*ر'), ['split']);
+    assert.deepStrictEqual(rules('وال*عير'), ['prefix', 'split']);
+    assert.deepStrictEqual(rules('g@hba'), ['symbols']);
+    assert.deepStrictEqual(rules('$harmoota'), ['symbols', 'arabizi']);
+  });
+
+  it('should match words split by symbols or spaces', () => {
+    const split = [
+      'ع*ي*ر', 'ع.ي.ر', 'ع-ي-ر', 'ع_ي_ر', 'ع🔥ي🔥ر', 'ع،ي،ر', 'ع/ي/ر', 'ع ي ر', 'ع  *  ي  *  ر',
+      'عي*ر', 'عي * ر', 'قح.بة', 'شرم*وطة', 'ك ح ب ة', 'عـ ي ـر', 'g-a-h-b-a', 'g a h b a', 'g\u0336a\u0336h\u0336b\u0336a',
+    ];
+    for (const text of split) assert.strictEqual(filter.isProfane(text), true, text);
+  });
+
+  it('should mask a split word whole, separators included', () => {
+    assert.strictEqual(filter.clean('انت ع*ي*ر!'), 'انت *****!');
+    const [match] = filter.inspect('انت ع ي ر');
+    assert.strictEqual(match.token, 'ع ي ر');
+    assert.strictEqual(match.start, 4);
+    assert.strictEqual(match.end, 9);
+    assert.strictEqual(match.entry, 'عير');
+    assert.strictEqual(filter.inspect('ع*ي*ر عارة').length, 2);
+  });
+
+  it('should strip prefixes and suffixes from split words', () => {
+    assert.strictEqual(filter.isProfane('و ع ي ر'), true);
+    assert.strictEqual(filter.isProfane('ع ي ر ك'), true);
+    assert.deepStrictEqual(filter.inspect('وال*عير')[0].rules, ['prefix', 'split']);
+  });
+
+  it('should not join normal words into a bad word', () => {
+    const clean = [
+      'انا و انت', 'د. علي راح للبيت', 'ص.ب 123', 'و/أو', 'الساعة 10:30', 'مرحبا،كيفك؟', 'يا - من',
+      'a b c d e f', 'http://www.example.com/a-b-c', '#hashtag_one_two', 'عمر',
+      'عي ر',        // spaces only, between pieces longer than one letter
+      'شرم * وطة',   // pieces longer than two letters around a spaced gap
+      'ع\nي\nر',     // line breaks always separate words
+      'ع      ي',    // gap too long
+    ];
+    for (const text of clean) assert.strictEqual(filter.isProfane(text), false, text);
+  });
+
+  it('should keep safe stems safe when split, but not hide a bad word beside one', () => {
+    assert.strictEqual(filter.isProfane('ب ع ي ر'), false);
+    assert.strictEqual(filter.inspect('ب ع ي ر', { includeSuppressed: true })[0].suppressedBy, 'بعير');
+    assert.strictEqual(filter.isProfane('ب*عير'), true);  // عير stands as a word of its own
+  });
+
+  it('should read presentation forms and full-width letters as plain letters', () => {
+    assert.strictEqual(filter.isProfane('ﻋﻴﺮ'), true);
+    assert.strictEqual(filter.isProfane('ｇａｈｂａ'), true);
+    assert.strictEqual(filter.clean('انت ﻋﺎﺭﺓ'), 'انت ****');
+  });
+
+  it('should match words with the vocative يا glued on', () => {
+    assert.strictEqual(filter.isProfane('ياعارة'), true);
+    assert.strictEqual(filter.isProfane('يالعارة'), true);
+    assert.strictEqual(filter.isProfane('ياالعارة'), true);
+    assert.strictEqual(filter.inspect('ياعارة')[0].prefix, 'يا');
+    assert.strictEqual(new IraqiBadWordsFilter({ includeInsults: true }).isProfane('ياكلب'), true);
+    assert.strictEqual(filter.isProfane('وياعارة'), true);  // Iraqi ويا, "with"
+    assert.strictEqual(filter.isProfane('ويالعارة'), true);
+    assert.strictEqual(filter.inspect('وياعارة')[0].prefix, 'ويا');
+    for (const text of [
+      'يابس', 'ياكل', 'ياكلها', 'ياسمين', 'يارب', 'ياريت', 'يالله', 'ياخي',
+      'وياك', 'وياكم', 'ويانا', 'وياه', 'وياها', 'وياهم', 'ويايا', 'ويابس',
+    ]) {
+      assert.strictEqual(filter.isProfane(text), false, text);
+    }
+  });
+
+  it('should read Arabizi 6 as ط and 8, 9 as ق', () => {
+    assert.strictEqual(filter.isProfane('6eezak'), true);
+    assert.strictEqual(filter.isProfane('9awad'), true);
+    assert.strictEqual(filter.isProfane('gawad'), true);
+    assert.strictEqual(filter.isProfane('8a7ba'), true);
+    assert.deepStrictEqual(filter.inspect('6eezak')[0].rules, ['arabizi']);
+    assert.strictEqual(filter.isProfane('sawad 2016 9:30'), false);
+  });
+
+  it('should read Greek and Cyrillic look-alikes in Latin words', () => {
+    assert.strictEqual(filter.isProfane('g\u0430hba'), true);   // Cyrillic а
+    assert.strictEqual(filter.isProfane('GAH\u0392A'), true);   // Greek Β
+    assert.deepStrictEqual(filter.inspect('g\u0430hba')[0].rules, ['lookalike']);
+    assert.strictEqual(filter.isProfane('привет как дела'), false);  // Russian text is left alone
+  });
+
+  it('should read mathematical letters and mask one placeholder per character', () => {
+    assert.strictEqual(filter.isProfane('𝐠𝐚𝐡𝐛𝐚'), true);
+    assert.strictEqual(filter.isProfane('𝒈𝒂𝒉𝒃𝒂'), true);
+    assert.strictEqual(filter.clean('انت 𝐠𝐚𝐡𝐛𝐚!'), 'انت *****!');
+    assert.strictEqual(filter.clean('ع🔥ي🔥ر'), '*****');
+  });
+
+  it('should not filter phrases by default', () => {
+    assert.strictEqual(filter.isProfane('تعال العب بيه'), false);
+  });
+
+  it('should filter phrases when includePhrases is on', () => {
+    const phrases = new IraqiBadWordsFilter({ includePhrases: true });
+    assert.strictEqual(phrases.isProfane('تعال العب بيه'), true);
+    assert.strictEqual(phrases.isProfane('تعال العب بينو'), true);
+    assert.strictEqual(phrases.clean('تعال العب بيه يا حلو'), '************* يا حلو');
+
+    const [match] = phrases.inspect('هسه تعال العب بيه');
+    assert.strictEqual(match.token, 'تعال العب بيه');
+    assert.strictEqual(match.start, 4);
+    assert.strictEqual(match.entry, 'تعال العب|العبلي بيه|بينو');
+    assert.strictEqual(match.source, 'phrases');
+    assert.deepStrictEqual(match.rules, ['phrase']);
+  });
+
+  it('should match phrases with normalized words, punctuation and a prefix', () => {
+    const phrases = new IraqiBadWordsFilter({ includePhrases: true });
+    assert.strictEqual(phrases.isProfane('تعااال إلعب بيه'), true);
+    assert.strictEqual(phrases.isProfane('تعال،  العب بيه!'), true);
+    const [match] = phrases.inspect('وتعال العب بيه');
+    assert.strictEqual(match.prefix, 'و');
+    assert.deepStrictEqual(match.rules, ['prefix', 'phrase']);
+  });
+
+  it('should match any alternative of each phrase word', () => {
+    const custom = new IraqiBadWordsFilter({ customPhrases: ['روح|امشي يمه|يمي'] });
+    for (const text of ['روح يمه', 'روح يمي', 'امشي يمه', 'امشي يمي']) {
+      assert.strictEqual(custom.isProfane(text), true, text);
+    }
+    assert.strictEqual(custom.isProfane('روح امشي'), false);
+    assert.strictEqual(custom.inspect('امشي يمي')[0].entry, 'روح|امشي يمه|يمي');
+  });
+
+  it('should match the progressive د on the first word of a phrase', () => {
+    const phrases = new IraqiBadWordsFilter({ includePhrases: true });
+    assert.strictEqual(phrases.isProfane('دقوم بيه'), true);
+    assert.strictEqual(phrases.isProfane('دگوم بينو'), true);
+    const [match] = phrases.inspect('ودقوم بيه');
+    assert.strictEqual(match.prefix, 'ود');
+    assert.deepStrictEqual(match.rules, ['prefix', 'phrase']);
+  });
+
+  it('should only match whole phrases', () => {
+    const phrases = new IraqiBadWordsFilter({ includePhrases: true });
+    for (const text of ['تعال العب', 'العب بيه', 'تعال هنا العب بيه', 'تعال العب بيهم', 'قوم بينا نروح', 'دروح بيه']) {
+      assert.strictEqual(phrases.isProfane(text), false, text);
+    }
+  });
+
+  it('should add, remove and give Mosul forms to custom phrases', () => {
+    const custom = new IraqiBadWordsFilter({ customPhrases: ['روح برا'], dialects: ['mosul'] });
+    assert.strictEqual(custom.isProfane('روح برا'), true);
+    assert.strictEqual(custom.isProfane('غوح بغا'), true);
+    assert.strictEqual(custom.inspect('روح برا')[0].source, 'custom');
+
+    custom.addPhrases(['تعال العب بيه|بينو']);
+    assert.strictEqual(custom.isProfane('تعال العب بينو'), true);
+    custom.removePhrases(['روح برا', 'تعال العب بينو|بيه']);  // alternatives in any order
+    assert.strictEqual(custom.isProfane('روح برا'), false);
+    assert.strictEqual(custom.isProfane('غوح بغا'), false);
+    assert.strictEqual(custom.isProfane('تعال العب بيه'), false);
+
+    const builtIn = new IraqiBadWordsFilter({ includePhrases: true });
+    builtIn.removePhrases(['قوم|كوم بيه|بينو']);
+    assert.strictEqual(builtIn.isProfane('قوم بيه'), false);
+    assert.strictEqual(builtIn.isProfane('قومي بيه'), true);
+  });
+
+  it('should read @ and $ as letters in Arabizi words', () => {
+    assert.strictEqual(filter.isProfane('g@hba'), true);
+    assert.strictEqual(filter.isProfane('$harmoota'), true);
+    assert.strictEqual(filter.clean('you g@hba!'), 'you *****!');
+    assert.strictEqual(filter.isProfane('ayri@hotmail.com'), true);  // the word before @ still counts
+    assert.strictEqual(filter.isProfane('me@site.com, price $100'), false);
   });
 });
