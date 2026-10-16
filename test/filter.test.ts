@@ -323,9 +323,9 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     assert.strictEqual(mosul.isProfane('شرموطة'), true);   // ر forms still match
     assert.strictEqual(mosul.isProfane('سغسغي'), true);    // every ر in the word
     const [match] = mosul.inspect('الشغموطة');
-    assert.strictEqual(match.entry, 'الشرموطة');
+    assert.strictEqual(match.entry, 'شرموطة');
     assert.strictEqual(match.source, 'words');
-    assert.deepStrictEqual(match.rules, ['mosul']);
+    assert.deepStrictEqual(match.rules, ['prefix', 'mosul']);
     assert.deepStrictEqual(mosul.inspect('عيغ')[0].rules, []);  // listed in its own right
   });
 
@@ -394,6 +394,10 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     assert.deepStrictEqual(rules('وال*عير'), ['prefix', 'split']);
     assert.deepStrictEqual(rules('g@hba'), ['symbols']);
     assert.deepStrictEqual(rules('$harmoota'), ['symbols', 'arabizi']);
+    assert.deepStrictEqual(rules('چلب', new IraqiBadWordsFilter({ includeInsults: true })), ['che-as-kaf']);
+    assert.deepStrictEqual(rules('پورنو'), ['keyboard']);
+    assert.deepStrictEqual(rules('عيرعير'), ['repeated']);
+    assert.deepStrictEqual(rules('والعيروالعير'), ['prefix', 'repeated']);
   });
 
   it('should match words split by symbols or spaces', () => {
@@ -553,6 +557,32 @@ describe('IraqiBadWordsFilter Unit Tests', () => {
     builtIn.removePhrases(['قوم|كوم بيه|بينو']);
     assert.strictEqual(builtIn.isProfane('قوم بيه'), false);
     assert.strictEqual(builtIn.isProfane('قومي بيه'), true);
+  });
+
+  it('should read چ as ك, and پ and ڤ as ب and ف', () => {
+    const strict = new IraqiBadWordsFilter({ includeInsults: true });
+    assert.strictEqual(strict.isProfane('چلب'), true);
+    assert.strictEqual(strict.clean('ابن الچلب'), 'ابن *****');
+    assert.strictEqual(strict.inspect('چلب')[0].entry, 'كلب');
+    assert.strictEqual(filter.isProfane('پورنو'), true);
+    assert.strictEqual(strict.isProfane('شربت چاي ويا پاچة'), false);
+  });
+
+  it('should match an entry typed several times with no space', () => {
+    assert.strictEqual(filter.isProfane('عيرعير'), true);
+    assert.strictEqual(filter.isProfane('عيرعيرعير'), true);
+    assert.strictEqual(filter.isProfane('GAHBAgahba'), true);
+    assert.strictEqual(filter.clean('انت كحبةكحبة!'), 'انت ********!');
+    const [match] = filter.inspect('عيرعير');
+    assert.strictEqual(match.entry, 'عير');
+    assert.strictEqual(match.normalized, 'عيرعير');
+  });
+
+  it('should only match exact repeats, and keep repeated safe stems safe', () => {
+    for (const text of ['عيرعيرك', 'كسكس', 'الكسكس', 'بعيربعير', 'بكسبكس']) {
+      assert.strictEqual(filter.isProfane(text), false, text);
+    }
+    assert.strictEqual(filter.inspect('بعيربعير', { includeSuppressed: true })[0].suppressedBy, 'بعير');
   });
 
   it('should read @ and $ as letters in Arabizi words', () => {

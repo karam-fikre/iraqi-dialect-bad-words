@@ -89,5 +89,19 @@
   { "text": "تعال العب طوبة", "profane": false, "options": { "includePhrases": true } },
   { "text": "وياعارة", "profane": true, "note": "Iraqi ويا (with) glued on" },
   { "text": "تعال وياكم", "profane": false, "note": "ويا + pronoun, not a bad word" },
-  { "text": "روح ويانا للسوق", "profane": false, "note": "ويا + pronoun, not a bad word" }
+  { "text": "روح ويانا للسوق", "profane": false, "note": "ويا + pronoun, not a bad word" },
+  { "text": "اكلنا كسكس بالبيت", "profane": false, "note": "كسكس (couscous) is a safe stem, not ك + سكس" },
+  { "text": "عندي عرصة بالمنصور", "profane": true, "options": { "stripSuffixes": true }, "note": "عرصة (plot of land) is a safe stem, not عرص + ة" },
+  { "text": "حصل على زمالة دراسية", "profane": false, "options": { "stripSuffixes": true }, "note": "زمالة (fellowship) is a safe stem, not زمال + ة" },
+  { "text": "خولة راحت للمدرسة", "profane": false, "options": { "stripSuffixes": true }, "note": "خولة (a name) is a safe stem, not خول + ة" },
+  { "text": "اتخذه مطية لاهدافه", "profane": false, "options": { "stripSuffixes": true }, "note": "مطية (mount) is a safe stem, not مطي + ة" },
+  { "text": "وايري انكطع", "profane": false, "note": "واير (wire) is a safe stem, not و + ايري" },
+  { "text": "انت چلب", "profane": true, "options": { "includeInsults": true }, "note": "چ read as ك" },
+  { "text": "شربت چاي", "profane": false, "note": "چ read as ك" },
+  { "text": "عيرعير", "profane": true, "note": "repeated with no space" },
+  { "text": "يلعن ابوك", "profane": true, "options": { "includePhrases": true } },
+  { "text": "انعل ابوكم", "profane": true, "options": { "includePhrases": true } },
+  { "text": "ابن الحرام", "profane": true, "options": { "includePhrases": true } },
+  { "text": "يلعن الظالمين", "profane": false, "options": { "includePhrases": true } },
+  { "text": "هذا حرام", "profane": false, "options": { "includePhrases": true } }
 ]

@@ -183,7 +183,8 @@ filter.inspect('وبعيرك', { includeSuppressed: true });
 | `diacritics` | `عَارَة`, `عـــارة` |
 | `invisible` | `عا‌رة` (zero-width character inside) |
 | `spelling` | `عاره` (ة/ه, ى/ي, أ/ا) |
-| `keyboard` | `عیر`, `کس` (Persian/Kurdish letters) |
+| `keyboard` | `عیر`, `کس`, `پورنو` (Persian/Kurdish letters) |
+| `che-as-kaf` | `چلب` → كلب |
 | `lookalike` | `gаhba` (Cyrillic `а` in a Latin word) |
 | `arabic-digits` | `ga٧ba` |
 | `stretched` | `عاااارة`, `للكواد` |
@@ -194,6 +195,7 @@ filter.inspect('وبعيرك', { includeSuppressed: true });
 | `mosul` | `شغموطة` → شرموطة (with `dialects: ['mosul']`) |
 | `phrase` | `تعال العب بيه` (with `includePhrases`) |
 | `split` | `ع*ي*ر`, `ع ي ر` (pieces joined again) |
+| `repeated` | `عيرعير`, `gahbagahba` (an entry typed several times with no space) |
 | `symbols` | `g@hba`, `$harmoota` (@ as a, $ as s) |
 
 Including the output of `inspect` in a [“Clean word flagged” issue](https://github.com/karam-fikre/iraqi-dialect-bad-words/issues/new?template=false-positive.yml) shows exactly which entry matched and which rules it needed; the issue form has a field for it.
@@ -236,14 +238,16 @@ Matching is done per whole word, after normalizing both the text and the word li
 | Stretched letters | `عاااارة` |
 | Tatweel | `عـــارة` |
 | ة / ه, ى / ي, أ / إ / آ / ا | `عاره` |
-| Persian/Kurdish keyboard letters ی ک ە | `عیر`, `کس` |
+| Persian/Kurdish keyboard letters ی ک ە پ ڤ | `عیر`, `کس`, `پورنو` |
 | گ read as ق (Iraqi) and as ك (Kurdish typists) | `گحبة` = `قحبة`, `گس` = `كس` |
+| چ read as ك, as Iraqi says ك in many words | `چلب` = `كلب` |
 | Invisible characters hidden inside a word (zero-width, direction marks, soft hyphen) | `عا‌رة` |
 | Letters split by symbols, or by spaces between single letters | `ع*ي*ر`, `ع.ي.ر`, `ع ي ر`, `عي * ر`, `شرم.وطة`, `g-a-h-b-a` |
 | Arabic presentation forms, full-width and mathematical letters | `ﻋﻴﺮ`, `ｇａｈｂａ`, `𝐠𝐚𝐡𝐛𝐚` |
 | Greek or Cyrillic look-alike letters in a Latin word | `gаhba` (Cyrillic `а`) |
 | Attached prefixes و ف ب ل ك ال, and يا / ويا | `والعارة`, `للعارة`, `ياعارة`, `يالعارة`, `وياعارة` |
 | Pronoun suffixes (with `stripSuffixes`) | `طيزهم`, `وطيزكم` |
+| The same word typed several times with no space | `عيرعير`, `gahbagahba` |
 | Punctuation next to the word | `عارة!` `عارة،` |
 | Digits glued to or inside an Arabic word | `عارة3`, `عا٣رة` |
 | Arabizi (Latin letters and numbers, Western or Arabic-Indic), including spelling variants | `ga7ba` = `ga٧ba` = `qahba` = `gahba`, `kosomak` = `kusumak`, `3ayri` = `ayri`, `6eezak` = `teezak` (6 = ط), `9awad` = `8awad` = `gawad` (9, 8 = ق) |
@@ -256,7 +260,7 @@ Split words are found by joining neighbouring pieces when the gap between them i
 ## Known limitations
 
 - Phrases match only as listed, word for word: another word in between (`تعال هنا العب بيه`) or an unlisted form (`بيهم`) isn't matched.
-- Words glued together without a space (e.g. the same word typed twice) aren't detected.
+- Different words glued together without a space aren't detected. The same word typed several times (`عيرعير`) is.
 - A letter replaced by a symbol (`ع*ر`, `ك*بة`) isn't detected: the symbol could stand for any letter, and `ع*ر` could just as well be عمر.
 - Longer pieces split with spaces around the symbol (`شرم * وطة`) aren't joined, so normal sentences aren't either.
 - No word list is complete. Use this as one layer of moderation, not the only one.
@@ -271,6 +275,7 @@ The word list is the heart of this package, and native speakers are the best jud
   A safe stem written with گ protects only words spelled with گ, so `گلب` ("heart", Iraqi spelling of قلب) can be safe while `كلب` is not.
 
 - **A sentence is judged wrong:** add it to [`test/fixtures/sentences.json`](test/fixtures/sentences.json) with the verdict a native speaker expects (`"profane": true` or `false`, plus `"options"` if it needs `includeInsults`, `includePhrases` or `stripSuffixes`). Every sentence there runs as a test, so later word-list changes can't silently flip it.
+- **Clean text gets flagged:** add it to [`test/fixtures/clean-text.txt`](test/fixtures/clean-text.txt), which must never produce a match (with or without `stripSuffixes`, `includePhrases` and the Mosul dialect), then fix the lists until the tests pass again.
 
 Words that also have a common, normal meaning (like كلب "dog") belong in [`src/insults.json`](src/insults.json), which is opt-in, not in `words.json`. Phrases of clean words that are vulgar together belong in [`src/phrases.json`](src/phrases.json), also opt-in.
 
@@ -278,13 +283,15 @@ Words that also have a common, normal meaning (like كلب "dog") belong in [`sr
 
 ```bash
 npm install
-npm test           # run tests
+npm test           # run tests, including the word-list checks and the clean-text check
 npm run typecheck  # type-check
 npm run build      # build dist/
 npm run check -- article.txt --phrases   # list every match in a text file
 ```
 
 `npm run check` runs the filter over a text file (or stdin, e.g. `pbpaste | npm run check`) and prints each match with its line and column, the entry it matched, its source and rules, and the text around it. Flags turn on options: `--insults`, `--phrases`, `--suffixes`, `--mosul`, and `--clean` to also print the masked text. Running it on articles you know are clean is the quickest way to find false positives: each match is either a missing safe stem or a word that belongs in an opt-in list.
+
+`npm test` also checks the lists themselves: no entry may normalize to the same word as another (`گحبة` and `قحبة`, `qahba` and `gahba`), no entry may be one the filter already catches without it (`الكس` is `ال` + `كس`), and every safe stem must clear a match. When a new entry fails, the message names the entry it duplicates and the rules that already catch it.
 
 ## License
 

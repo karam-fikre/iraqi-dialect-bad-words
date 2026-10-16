@@ -94,7 +94,8 @@ export type MatchRule =
   | "diacritics"     // diacritics or tatweel removed: عَارَة, عـــارة
   | "invisible"      // invisible characters removed: عا‌رة
   | "spelling"       // أ إ آ ٱ → ا, ة → ه, ى → ي: عاره
-  | "keyboard"       // Persian/Kurdish keyboard letters ی ک ە: عیر
+  | "keyboard"       // Persian/Kurdish keyboard letters ی ک ە پ ڤ: عیر, پورنو
+  | "che-as-kaf"     // چ read as ك, as Iraqi says ك in many words: چلب
   | "lookalike"      // Greek/Cyrillic look-alikes in a Latin word: gаhba (Cyrillic а)
   | "arabic-digits"  // Arabic-Indic digits read as 0-9: ga٧ba
   | "stretched"      // repeated letters collapsed: عاااارة, للكواد
@@ -106,6 +107,7 @@ export type MatchRule =
   | "suffix"         // pronoun suffix stripped (stripSuffixes): طيزهم
   | "mosul"          // matched the Mosul ر → غ form of the entry (dialects)
   | "split"          // spaces and special characters removed: ع*ي*ر, ع ي ر
+  | "repeated"       // an entry typed several times with no space: عيرعير
   | "symbols"        // @ or $ read as a letter in Arabizi: g@hba, $harmoota
   | "phrase";        // matched a phrase of several words: تعال العب بيه
 
@@ -139,7 +141,12 @@ const NORMALIZE_STEPS: { rule: MatchRule | null; apply: (text: string) => string
   { rule: "diacritics", apply: (t) => t.replace(/[\u064B-\u065F\u0670\u0640]/g, "") },
   { rule: "invisible", apply: (t) => t.replace(INVISIBLE_CHARS, "") },
   { rule: "spelling", apply: (t) => t.replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي") },
-  { rule: "keyboard", apply: (t) => t.replace(/[ەہۀ]/g, "ه").replace(/ی/g, "ي").replace(/[کڪ]/g, "ك") },
+  {
+    rule: "keyboard",
+    apply: (t) => t.replace(/[ەہۀ]/g, "ه").replace(/ی/g, "ي").replace(/[کڪ]/g, "ك").replace(/پ/g, "ب").replace(/ڤ/g, "ف"),
+  },
+  // Iraqi says many words with ك as چ (كلب → چلب) and some write them that way
+  { rule: "che-as-kaf", apply: (t) => t.replace(/چ/g, "ك") },
   {
     rule: "lookalike",
     apply: (t) => (/[A-Za-z]/.test(t) ? t.replace(LOOKALIKE_CHARS, (letter) => LOOKALIKES[letter]) : t),
@@ -150,13 +157,13 @@ const NORMALIZE_STEPS: { rule: MatchRule | null; apply: (text: string) => string
       .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x660))
       .replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - 0x6f0)),
   },
-  { rule: "stretched", apply: (t) => t.replace(/(.)\1+/gu, "$1") },
+  { rule: "stretched", apply: (t) => t.replace(/(.)\1+/g, "$1") },
   { rule: null, apply: (t) => t.toLowerCase() },
   // Digits glued to an Arabic word (عارة3, عا٣رة) are padding; in Arabizi they're letters
   {
     rule: "glued-digits",
     apply: (t) => (HAS_ARABIC.test(t) && /[0-9]/.test(t)
-      ? t.replace(/[0-9]/g, "").replace(/(.)\1+/gu, "$1")
+      ? t.replace(/[0-9]/g, "").replace(/(.)\1+/g, "$1")
       : t),
   },
   { rule: "arabizi", apply: (t) => (HAS_ARABIC.test(t) ? t : foldArabizi(t)) },
@@ -243,7 +250,7 @@ export interface ProfanityMatch {
   normalized: string;
   /**
    * The dictionary entry (word or phrase) it matched, spelled as in its list. For a Mosul form
-   * (rule "mosul"), the listed ر spelling: الشرموطة for الشغموطة.
+   * (rule "mosul"), the listed ر spelling: شرموطة for شغموطة.
    */
   entry: string;
   /** The list the entry came from. */
@@ -263,8 +270,11 @@ export interface ProfanityMatch {
 
 type WordMatch = Omit<ProfanityMatch, "token" | "start" | "end">;
 
-/** A match on one reading of a word, before its rules are worked out. */
-type ReadingMatch = Omit<WordMatch, "rules"> & { form: string };
+/**
+ * A match on one reading of a word, before its rules are worked out.
+ * `repeats` is set when the word is the matched form typed that many times.
+ */
+type ReadingMatch = Omit<WordMatch, "rules"> & { form: string; repeats?: number };
 
 interface Entry {
   /** The word as spelled in its list. */
@@ -340,7 +350,7 @@ export class IraqiBadWordsFilter {
 
   /**
    * Normalizes a word or token for comparison: removes diacritics, tatweel and
-   * invisible characters, unifies letter variants (أ/ا, ة/ه, ی/ي, ک/ك, …),
+   * invisible characters, unifies letter variants (أ/ا, ة/ه, ی/ي, ک/ك, چ/ك, …),
    * reads Arabic-Indic digits, collapses stretched letters (عاااارة -> عارة),
    * ignores digits in Arabic words and folds Arabizi. See NORMALIZE_STEPS.
    */
@@ -486,7 +496,7 @@ export class IraqiBadWordsFilter {
       const found = this.matchReading(reading);
       if (!found) continue;
 
-      const { form, ...rest } = found;
+      const { form, repeats, ...rest } = found;
       const match: WordMatch = { ...rest, rules: this.explain(token, found, spelled, reading) };
       if (match.suppressedBy === undefined && spelledSafe) match.suppressedBy = spelledSafe;
       if (match.suppressedBy === undefined) return match;
@@ -503,7 +513,7 @@ export class IraqiBadWordsFilter {
    * "stretched" but not "spelling", since both have ة.
    */
   private explain(token: string, found: ReadingMatch, spelled: string, reading: string): MatchRule[] {
-    const listed = found.prefix + found.form + found.suffix;
+    const listed = (found.prefix + found.form + found.suffix).repeat(found.repeats ?? 1);
     const gaf = reading === spelled ? "" : reading === spelled.replace(/گ/g, "ق") ? "ق" : "ك";
     // Compare after reading گ the way the match did (a گ in a list entry means ق)
     const same = (typed: string, list: string) =>
@@ -520,6 +530,7 @@ export class IraqiBadWordsFilter {
     if (found.prefix) rules.push("prefix");
     if (found.suffix) rules.push("suffix");
     if (found.form !== found.entry) rules.push("mosul");
+    if (found.repeats) rules.push("repeated");
 
     return rules;
   }
@@ -569,7 +580,7 @@ export class IraqiBadWordsFilter {
     }
 
     const match = candidates.find(({ stem }) => this.words.has(stem));
-    if (!match) return null;
+    if (!match) return this.matchRepeated(word);
 
     const { word: entry, form, source } = this.words.get(match.stem)!;
     const result: ReadingMatch = {
@@ -578,6 +589,29 @@ export class IraqiBadWordsFilter {
 
     const safe = this.findSafe(candidates);
     return safe ? { ...result, suppressedBy: safe } : result;
+  }
+
+  /**
+   * Matches a word that is one entry typed several times with no space
+   * (عيرعير, gahbagahba), each time with the same prefix and suffix.
+   * Only an exact repeat counts, so a clean word that merely contains a bad
+   * word still isn't flagged, and a safe stem clears the whole word (كسكس).
+   */
+  private matchRepeated(word: string): ReadingMatch | null {
+    for (let size = 1; size <= word.length / 2; size++) {
+      if (word.length % size !== 0) continue;
+      const unit = word.slice(0, size);
+      if (unit.repeat(word.length / size) !== word) continue;
+
+      // The shortest repeating unit; a longer one would repeat it too
+      const found = this.matchReading(unit);
+      if (!found) return null;
+      const safe = found.suppressedBy ?? this.findSafe(this.prefixCandidates(word));
+      const result: ReadingMatch = { ...found, normalized: word, repeats: word.length / size };
+      return safe ? { ...result, suppressedBy: safe } : result;
+    }
+
+    return null;
   }
 
   /**

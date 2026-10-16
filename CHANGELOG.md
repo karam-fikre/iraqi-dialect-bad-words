@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- چ is read as ك, as Iraqi says ك in many words: `چلب` = `كلب` (rule `che-as-kaf`). پ and ڤ are read as ب and ف: `پورنو` = `بورنو` (rule `keyboard`).
+- A list entry typed several times with no space is caught: `عيرعير`, `gahbagahba`, `والعيروالعير` (rule `repeated`). Only exact repeats count, so a clean word that contains a bad word still isn't flagged.
+- New words: كسج, كسمج, كسامج, كسختج, كسخواتك, عيرج, طيزج, زبج, ايري, ايرك, ايرج, انيج, ينيك, تنيك, نياج, طياز, شرمطة, قوادة, كوادة, كوادين, نغول, مومس, مومسات, داعرة, `kos`, `kosokhtak`, `kos5tak`, `zeb`, `khara`, `3ahra`, `zmal`, `aneekak`.
+- New insults (with `includeInsults`): كلبة, زبالة, حقير, حقيرة, بغل, جحش, خنزير, خنازير, قرد, حثالة, نجس, واطي, منحط, ساقطة, فرخ, مخبل, `zbala`, `khanzeer`, `7aqeer`.
+- New phrases (with `includePhrases`): `انعل ابوك`, `يلعن ابوك` and their forms, `ابن الحرام` / `ابن الزنا` and their forms.
+- New safe stems: كسكس (couscous, which was flagged as ك + سكس), عرصة (plot of land), زمالة (fellowship), زمالك, خولة, مطية, نغلي ("we boil"), and واير / باير so the new ايري doesn't flag "my wire" or unsold goods.
+- Tests that check the word lists themselves (no duplicates after normalization, no entries the filter already catches, no safe stems that clear nothing), and a clean-text fixture that must never be flagged.
+
+### Changed
+
+- Entries that were duplicates after normalization (`گحبة` = `قحبة`, `qahba` = `gahba`, …) or already caught through a prefix (`الكس`, `الشرموطة`, `الكلب`, …) were removed from the lists. Nothing that was flagged before stops being flagged, but `inspect()` now reports such a word as the shorter entry with its prefix: `الشرموطة` is `entry: 'شرموطة', prefix: 'ال'`.
+- `MatchRule` has new members `che-as-kaf` and `repeated`. TypeScript code with an exhaustive `switch` over it needs the new cases.
+- Regular expressions no longer use the `u` flag, in line with the rest of the code's support for older Hermes (React Native). Matching is unchanged.
+
 ## 1.4.0
 
 ### Added
